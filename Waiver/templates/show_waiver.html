@@ -1,0 +1,9 @@
+{% extends "layout.html" %}
+{% block body %}
+    <pre>{{ waiver }}</pre>
+    <form action="{{ url_for('sign_waiver') }}" method=post>
+        <dl>
+            <dd><input type=submit value='Sign It'>
+        </dl>
+    </form>
+{% endblock %}

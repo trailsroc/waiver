@@ -1,0 +1,13 @@
+<!doctype html>
+<title>#TrailsRoc Waiver</title>
+<link rel=stylesheet type=text/css href="{{ url_for('static',filename='fontstylesheet.css')}}">
+<link rel=stylesheet type=text/css href="{{ url_for('static',filename='style.css')}}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
+
+<div class=page>
+    <h1>#TrailsRoc Waiver</h1>
+    {% for message in get_flashed_messages() %}
+    <div class=flash>{{ message }}</div>
+    {% endfor %}
+    {% block body %}{% endblock %}
+</div>

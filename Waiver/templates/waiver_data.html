@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block body %}
+<div id="jstree"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
+
+<script>
+ $(function () {
+ $('#jstree').jstree({
+     'core': {
+         'data': {
+             'url': function(node){
+                        return "{{ url_for('static',filename='Waivers.json')}}"
+             },
+             'data': function(node){1
+                        return {'id':node.id}
+             }
+         }
+     }
+ });
+     });
+</script>
+{% endblock %}

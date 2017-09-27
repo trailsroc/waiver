@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block body %}
+
+    <div id="signature-pad" class="signature-pad">
+        <div class="signature-pad--body">
+            <canvas></canvas>
+        </div>
+        <div class="signature-pad--footer">
+            <div class="description">Sign above</div>
+                 <div class="signature-pad--actions">
+                    <button type="button" class="button-clear" data-action="clear">Clear</button>
+                    <div class="signature-submit">
+                    <button type="button" class="button-submit" data-action="submit">Submit</button>
+                    </div>
+            </div>
+    </div>
+    <script src="{{ url_for('static',filename='signature_pad.min.js')}}"></script>
+    <script>
+    var wrapper = document.getElementById("signature-pad");
+    var clearButton = wrapper.querySelector("[data-action=clear]");
+    var submitButton = wrapper.querySelector("[data-action=submit]");
+    var canvas = wrapper.querySelector("canvas");
+    var signaturePad = new SignaturePad(canvas);
+    function resizeCanvas(){
+        var ratio = Math.max(window.devicePixelRatio || 1, 1);
+        canvas.width = canvas.offsetWidth * ratio;
+        canvas.height = canvas.offsetWidth * ratio * 0.25;
+        canvas.getContext("2d").scale(ratio,ratio);
+        signaturePad.clear();
+    }
+
+     window.onresize = resizeCanvas;
+     resizeCanvas();
+
+     clearButton.addEventListener("click",function (event) {
+        signaturePad.clear();
+     });
+
+     submitButton.addEventListener("click",function (event) {
+         function sendData(data){
+            var XHR = new XMLHttpRequest();
+            var FD = new FormData();
+             for(name in data){
+                 FD.append(name,data[name]);
+            }
+
+             XHR.open('POST','{{ url_for('commit_waiver') }}');
+             XHR.send(FD);
+         }
+
+         sendData({signature:signaturePad.toDataURL()});
+     });
+
+    </script>
+{% endblock %}
