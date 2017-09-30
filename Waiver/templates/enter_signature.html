@@ -2,6 +2,7 @@
 {% block body %}
 
     <div id="signature-pad" class="signature-pad">
+        <div id="name-text"></div>
         <div class="signature-pad--body">
             <canvas></canvas>
         </div>
@@ -29,6 +30,30 @@
         signaturePad.clear();
     }
 
+    function post(path, params, method) {
+        method = method || "post"; // Set method to post by default if not specified.
+
+        // The rest of this code assumes you are not using a library.
+        // It can be made less wordy if you use one.
+        var form = document.createElement("form");
+        form.setAttribute("method", method);
+        form.setAttribute("action", path);
+
+        for(var key in params) {
+            if(params.hasOwnProperty(key)) {
+                var hiddenField = document.createElement("input");
+                hiddenField.setAttribute("type", "hidden");
+                hiddenField.setAttribute("name", key);
+                hiddenField.setAttribute("value", params[key]);
+
+                form.appendChild(hiddenField);
+            }
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+
      window.onresize = resizeCanvas;
      resizeCanvas();
 
@@ -36,20 +61,15 @@
         signaturePad.clear();
      });
 
+     var name = window.prompt("Please enter your name:","");
+     if (name != null) {
+        document.getElementById("name-text").innerHTML = name.replace(/[^A-Za-z_ ]/g,'');
+     }
+
      submitButton.addEventListener("click",function (event) {
-         function sendData(data){
-            var XHR = new XMLHttpRequest();
-            var FD = new FormData();
-             for(name in data){
-                 FD.append(name,data[name]);
-            }
-
-             XHR.open('POST','{{ url_for('commit_waiver') }}');
-             XHR.send(FD);
-         }
-
-         sendData({signature:signaturePad.toDataURL()});
+             post('{{ url_for("commit_waiver") }}',{signature:signaturePad.toDataURL(),username:document.getElementById("name-text").innerHTML});
      });
+
 
     </script>
 {% endblock %}

@@ -1,6 +1,10 @@
 import os
 import sqlite3
-from flask import Flask,request,session,g,redirect,url_for,abort,render_template,flash
+import base64
+import io
+from PIL import Image
+from flask import Flask,request,session,g,redirect,url_for,abort,render_template,flash,send_from_directory
+from fpdf import FPDF
 
 app = Flask(__name__)
 app.config.from_object(__name__)
@@ -9,7 +13,9 @@ app.config.update(dict(
     DATABASE=os.path.join(app.root_path,'Waiver.db'),
     SECRET_KEY='och3weifeiVae4iuKeecaeleeF1vee6vei7u',
     USERNAME='trailsroc',
-    PASSWORD='stripe.serious.come.duck.7'
+    PASSWORD='stripe.serious.come.duck.7',
+    PREFERRED_URL_SCHEME='https',
+    UPLOAD_FOLDER='/tmp/WAIVER/',
 ))
 app.config.from_envvar('FLASKR_SETTINGS', silent=True)
 
@@ -60,21 +66,47 @@ def show_waiver():
 def sign_waiver():
     return render_template('enter_signature.html')
 
+def drawWaiver(fn,imFN,username,date,outFN):
+    pdf = FPDF('P','in','Letter')
+    pdf.add_page()
+    pdf.set_font('Arial','',32)
+    pdf.cell(txt='#TrailsRoc Waiver',w=0,h=0.75,ln=1)
+    pdf.set_font('Arial','',14)
+    pdf.multi_cell(txt=get_waiver(),w=0,h=.20)
+    pdf.image(fn,w=8)
+    pdf.cell(txt=username,w=0,h=.20,ln=1)
+    pdf.cell(txt=date,w=0,h=.20,ln=1)
+    pdf.output(outFN)
+
 @app.route('/commit',methods=['POST'])
 def commit_waiver():
     from datetime import datetime
 
-    try:
-        filename = os.path.join(app.config['UPLOAD_FOLDER'],datetime.now().strftime('%Y%m%d-%H%M%S%f.png'))
-        flash(filename)
-        with open(filename,'w') as out:
-            out.write(request.form['signature'])
-    except:
-        flash('Failed to record signature')
-        return redirect(url_for('sign_waiver'))
+    now = datetime.now()
+    basename = now.strftime('%Y%m%d-%H%M%S%f.png')
+    basePDF = now.strftime('%Y%m%d-%H%M%S%f.pdf')
+    filename = os.path.join(app.config['UPLOAD_FOLDER'],basename)
+    png = Image.open(io.BytesIO(base64.b64decode(request.form['signature'].split(',')[1])))
+    background = Image.new('RGBA', png.size, (255,255,255))
+    alpha_composite = Image.alpha_composite(background, png)
+    im2 = alpha_composite.convert(mode='P')
+    im2.save(filename,optimize=True)
+    pdfFN = os.path.join(app.config['UPLOAD_FOLDER'],basePDF)
+    drawWaiver(filename,basename,request.form['username'],now.strftime('%Y-%m-%d'),pdfFN)
+
     # I need the data at this point to create the PDF
     flash('New entry was successfully posted')
-    return redirect(url_for('show_waiver'))
+    return show_waiver()
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'],
+                               filename)
+
+@app.route('/list')
+def list_waivers():
+    entries = [x for x in sorted(os.listdir(app.config['UPLOAD_FOLDER']) if 'pdf' in x]
+    return render_template('list_waivers.html',entries=entries)
 
 @app.route('/review')
 def review_waivers():
