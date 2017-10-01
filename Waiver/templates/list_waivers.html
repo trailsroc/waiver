@@ -1,8 +1,30 @@
 {% extends "layout.html" %}
 {% block body %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
+<div id="jstree">
   <ul class=entries>
-  {% for entry in entries %}
-      <li><a href="uploads/{{ entry }}">{{ entry }}</a></li>
+  {% for year,months in entries|dictsort %}
+      <li>{{ year }}
+          <ul>
+          {% for month,days in months|dictsort %}
+              <li>{{ month }}
+              <ul>
+                  {% for day,waivers in days|dictsort %}
+                  <li> {{ day }}
+                      <ul>
+                      {% for name,url in waivers|dictsort %}
+                          <li><a href='{{ url }}'>{{ name }}</a></li>
+                      {% endfor %}
+                      </ul>
+                  {% endfor %}
+              </ul>
+              </li>
+          {% endfor %}
+          </ul>
+      </li>
   {% endfor %}
   </ul>
+</div>
+<script>$('#jstree').jstree()</script>
 {% endblock %}

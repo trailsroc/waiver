@@ -6,6 +6,7 @@ from PIL import Image
 from flask import Flask,request,session,g,redirect,url_for,abort,render_template,flash,send_from_directory
 from fpdf import FPDF
 from datetime import datetime
+from collections import defaultdict
 
 app = Flask(__name__)
 app.config.from_envvar('WAIVER_SETTINGS',silent=True)
@@ -25,11 +26,13 @@ def get_waiver():
 def save_waiver_db(username,signdate,filename):
     db = get_db()
 
-    cur = db.execute('select count(signdate) from waiverlist where signdate=?',(signdate,))
+    shortName = filename.replace(app.config['UPLOAD_FOLDER'],'')
+
+    cur = db.execute('select count(signdate) from waiverlist where signdate=? and username=?',(signdate,username))
     if cur.fetchone()[0] != 0:
         return
 
-    cur = db.execute('insert into waiverlist (username,signdate,filename) values (?,?,?)',(username,signdate,filename))
+    cur = db.execute('insert into waiverlist (username,signdate,filename) values (?,?,?)',(username,signdate,shortName))
     db.commit()
 
 def get_db():
@@ -89,9 +92,15 @@ def getOutputPath(dt,ext,source='Flask'):
     if 'Flask' == source:
         return dt.strftime('{}/%Y%m%d-%H%M%S%f.{}'.format(d,ext))
 
+def parseSQLTime(t):
+    try:
+        return datetime.strptime(t,'%Y-%m-%d %H:%M:%S.%f')
+    except:
+        return datetime.strptime(t,'%Y-%m-%d')
+
 @app.route('/commit',methods=['POST'])
 def commit_waiver():
-    now = datetime.strptime(request.form['now'],'%Y-%m-%d %H:%M:%S.%f')
+    now = parseSQLTime(request.form['now'])
     pngName  = getOutputPath(now,'png')
     pdfName = getOutputPath(now,'pdf')
     png = Image.open(io.BytesIO(base64.b64decode(request.form['signature'].split(',')[1])))
@@ -111,14 +120,30 @@ def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'],
                                filename)
 
+def getYMD(t):
+    year = t.strftime('%Y')
+    month = t.strftime('%m')
+    day = t.strftime('%d')
+    return year,month,day
+
+def get_fancy_waivers():
+    db = get_db()
+    cur = db.execute('select username,signdate,filename from waiverlist')
+
+    entries = defaultdict(lambda : defaultdict(lambda : defaultdict(lambda : defaultdict(str))))
+    for row in cur:
+        t = parseSQLTime(row[1])
+        year,month,day = getYMD(t)
+        entries[year][month][day][row[0]] = 'uploads'+row[2]
+
+    now = getYMD(datetime.now())
+    return entries,now
+
 @app.route('/list')
 def list_waivers():
-    entries = [x for x in sorted(os.listdir(app.config['UPLOAD_FOLDER'])) if 'pdf' in x]
-    return render_template('list_waivers.html',entries=entries)
-
-@app.route('/review')
-def review_waivers():
-    return render_template('waiver_data.html')
+    entries,now = get_fancy_waivers()
+    #entries = [x for x in sorted(os.listdir(app.config['UPLOAD_FOLDER'])) if 'pdf' in x]
+    return render_template('list_waivers.html',entries=entries,now=now)
 
 #@app.route('/add',methods=['POST'])
 #def add_entry():
