@@ -7,21 +7,12 @@ from flask import Flask,request,session,g,redirect,url_for,abort,render_template
 from fpdf import FPDF
 
 app = Flask(__name__)
-app.config.from_object(__name__)
-
-app.config.update(dict(
-    DATABASE=os.path.join(app.root_path,'Waiver.db'),
-    SECRET_KEY='och3weifeiVae4iuKeecaeleeF1vee6vei7u',
-    USERNAME='trailsroc',
-    PASSWORD='stripe.serious.come.duck.7',
-    PREFERRED_URL_SCHEME='https',
-    UPLOAD_FOLDER='/tmp/WAIVER/',
-))
-app.config.from_envvar('FLASKR_SETTINGS', silent=True)
+#app.config.from_object('Waiver.default_settings')
+app.config.from_envvar('WAIVER_SETTINGS',silent=True)
 
 def connect_db():
     """Connects to the specific database"""
-    rv = sqlite3.connect(app.config['DATABASE'])
+    rv = sqlite3.connect(app.config['DATABASE'],detect_types=sqlite3.PARSE_DECLTYPES)
     rv.row_factory = sqlite3.Row
     return rv
 
@@ -30,6 +21,10 @@ def get_waiver():
         with app.open_resource('TrailsRoc  Group Run Waiver.docx.txt','r') as f:
             g.waiverText = f.read()
     return g.waiverText
+
+def commit_waiver(username,signdate,filename):
+    db = get_db()
+    cur = db.execute('insert into waiverlist (username,signdate,filename) ')
 
 def get_db():
     """Opens a new database connection if there is none yet for the current application context."""
@@ -49,6 +44,12 @@ def init_db():
         db.cursor().executescript(f.read())
     db.commit()
 
+def get_activities():
+    db = get_db()
+    cur = db.execute('select id,name from activities where activeP==1')
+    entries = cur.fetchall()
+    return entries
+
 @app.cli.command('initdb')
 def initdb_command():
     """Initializes the database."""
@@ -57,60 +58,63 @@ def initdb_command():
 
 @app.route('/')
 def show_waiver():
-    db = get_db()
-    cur = db.execute('select id,name from activities where activeP==1')
-    entries = cur.fetchall()
+    entries = get_activities()
     return render_template('show_waiver.html',waiver=get_waiver(),activities=entries)
 
 @app.route('/sign',methods=['POST'])
 def sign_waiver():
     return render_template('enter_signature.html')
 
-def drawWaiver(fn,imFN,username,date,outFN):
+def drawWaiver(pngName,username,date,outFN):
     pdf = FPDF('P','in','Letter')
     pdf.add_page()
     pdf.set_font('Arial','',32)
     pdf.cell(txt='#TrailsRoc Waiver',w=0,h=0.75,ln=1)
     pdf.set_font('Arial','',14)
     pdf.multi_cell(txt=get_waiver(),w=0,h=.20)
-    pdf.image(fn,w=8)
+    pdf.image(pngName,w=8)
     pdf.cell(txt=username,w=0,h=.20,ln=1)
     pdf.cell(txt=date,w=0,h=.20,ln=1)
     pdf.output(outFN)
+
+def getOutputPath(dt,ext,source='Flask'):
+    d = dt.strftime('{}/{}/%Y/%m'.format(app.config['UPLOAD_FOLDER'],source))
+    os.makedirs(d,exist_ok=True)
+    if 'Flask' == source:
+        return dt.strftime('{}/%Y%m%d-%H%M%S%f.{}'.format(d,ext))
 
 @app.route('/commit',methods=['POST'])
 def commit_waiver():
     from datetime import datetime
 
     now = datetime.now()
-    basename = now.strftime('%Y%m%d-%H%M%S%f.png')
-    basePDF = now.strftime('%Y%m%d-%H%M%S%f.pdf')
-    filename = os.path.join(app.config['UPLOAD_FOLDER'],basename)
+    pngName  = getOutputPath(now,'png')
+    pdfName = getOutputPath(now,'pdf')
     png = Image.open(io.BytesIO(base64.b64decode(request.form['signature'].split(',')[1])))
     background = Image.new('RGBA', png.size, (255,255,255))
     alpha_composite = Image.alpha_composite(background, png)
     im2 = alpha_composite.convert(mode='P')
-    im2.save(filename,optimize=True)
-    pdfFN = os.path.join(app.config['UPLOAD_FOLDER'],basePDF)
-    drawWaiver(filename,basename,request.form['username'],now.strftime('%Y-%m-%d'),pdfFN)
+    im2.save(pngName,optimize=True)
+    drawWaiver(pngName,request.form['username'],now.strftime('%Y-%m-%d'),pdfName)
 
     # I need the data at this point to create the PDF
     flash('New entry was successfully posted')
     return show_waiver()
 
-@app.route('/uploads/<filename>')
+@app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'],
                                filename)
 
 @app.route('/list')
 def list_waivers():
-    entries = [x for x in sorted(os.listdir(app.config['UPLOAD_FOLDER']) if 'pdf' in x]
+    entries = [x for x in sorted(os.listdir(app.config['UPLOAD_FOLDER'])) if 'pdf' in x]
     return render_template('list_waivers.html',entries=entries)
 
 @app.route('/review')
 def review_waivers():
     return render_template('waiver_data.html')
+
 #@app.route('/add',methods=['POST'])
 #def add_entry():
 #    if not session.get('logged_in'):
