@@ -134,7 +134,7 @@ def get_fancy_waivers():
     for row in cur:
         t = parseSQLTime(row[1])
         year,month,day = getYMD(t)
-        entries[year][month][day][row[0]] = 'uploads'+row[2]
+        entries[year][month][day][row[0]] = app.config['ROOT_URL']+'uploads'+row[2]
 
     now = getYMD(datetime.now())
     return entries,now

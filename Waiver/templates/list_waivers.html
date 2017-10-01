@@ -5,16 +5,16 @@
 <div id="jstree">
   <ul class=entries>
   {% for year,months in entries|dictsort %}
-      <li>{{ year }}
+      <li data-jstree='{"type":"branch"{% if year == now[0] %},"opened":true{% endif %} }'>{{ year }}
           <ul>
           {% for month,days in months|dictsort %}
-              <li>{{ month }}
+              <li data-jstree='{"type":"branch"{% if year==now[0] and month == now[1] %},"opened":true{% endif %} }'>{{ month }}
               <ul>
                   {% for day,waivers in days|dictsort %}
-                  <li> {{ day }}
+                  <li data-jstree='{"type":"branch"{% if year==now[0] and month==now[1] and day == now[2] %},"opened":true{% endif %} }'>{{ day }}
                       <ul>
                       {% for name,url in waivers|dictsort %}
-                          <li><a href='{{ url }}'>{{ name }}</a></li>
+                          <li><a href='http://docs.google.com/viewerng/viewer?url={{ url }}'>{{ name }}</a></li>
                       {% endfor %}
                       </ul>
                   {% endfor %}
@@ -26,5 +26,23 @@
   {% endfor %}
   </ul>
 </div>
-<script>$('#jstree').jstree()</script>
+<script>$('#jstree')
+    .jstree(
+     {"plugins":["types"],
+      "types" : {
+          "default":{
+            "icon": "jstree-file"
+          },
+          "branch":{
+            "icon":"jstree-folder"
+          }
+      }})
+
+    $('#jstree').on('select_node.jstree',function(e,data){
+        if(data.instance.get_type(data.node) == 'branch')
+            data.instance.toggle_node(data.node);
+        else
+            window.open(data.node.a_attr.href,data.node.a_attr.target);
+    })
+ </script>
 {% endblock %}
