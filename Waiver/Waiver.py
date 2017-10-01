@@ -5,9 +5,9 @@ import io
 from PIL import Image
 from flask import Flask,request,session,g,redirect,url_for,abort,render_template,flash,send_from_directory
 from fpdf import FPDF
+from datetime import datetime
 
 app = Flask(__name__)
-#app.config.from_object('Waiver.default_settings')
 app.config.from_envvar('WAIVER_SETTINGS',silent=True)
 
 def connect_db():
@@ -22,9 +22,15 @@ def get_waiver():
             g.waiverText = f.read()
     return g.waiverText
 
-def commit_waiver(username,signdate,filename):
+def save_waiver_db(username,signdate,filename):
     db = get_db()
-    cur = db.execute('insert into waiverlist (username,signdate,filename) ')
+
+    cur = db.execute('select count(signdate) from waiverlist where signdate=?',(signdate,))
+    if cur.fetchone()[0] != 0:
+        return
+
+    cur = db.execute('insert into waiverlist (username,signdate,filename) values (?,?,?)',(username,signdate,filename))
+    db.commit()
 
 def get_db():
     """Opens a new database connection if there is none yet for the current application context."""
@@ -63,7 +69,7 @@ def show_waiver():
 
 @app.route('/sign',methods=['POST'])
 def sign_waiver():
-    return render_template('enter_signature.html')
+    return render_template('enter_signature.html',now=datetime.now())
 
 def drawWaiver(pngName,username,date,outFN):
     pdf = FPDF('P','in','Letter')
@@ -85,9 +91,7 @@ def getOutputPath(dt,ext,source='Flask'):
 
 @app.route('/commit',methods=['POST'])
 def commit_waiver():
-    from datetime import datetime
-
-    now = datetime.now()
+    now = datetime.strptime(request.form['now'],'%Y-%m-%d %H:%M:%S.%f')
     pngName  = getOutputPath(now,'png')
     pdfName = getOutputPath(now,'pdf')
     png = Image.open(io.BytesIO(base64.b64decode(request.form['signature'].split(',')[1])))
@@ -96,6 +100,7 @@ def commit_waiver():
     im2 = alpha_composite.convert(mode='P')
     im2.save(pngName,optimize=True)
     drawWaiver(pngName,request.form['username'],now.strftime('%Y-%m-%d'),pdfName)
+    save_waiver_db(request.form['username'],now,pdfName)
 
     # I need the data at this point to create the PDF
     flash('New entry was successfully posted')

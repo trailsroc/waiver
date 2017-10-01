@@ -3,6 +3,7 @@
 
     <div id="signature-pad" class="signature-pad">
         <div id="name-text"></div>
+        <div id="datetime">{{ now }}</div>
         <div class="signature-pad--body">
             <canvas></canvas>
         </div>
@@ -67,7 +68,7 @@
      }
 
      submitButton.addEventListener("click",function (event) {
-             post('{{ url_for("commit_waiver") }}',{signature:signaturePad.toDataURL(),username:document.getElementById("name-text").innerHTML});
+             post('{{ url_for("commit_waiver") }}',{signature:signaturePad.toDataURL(),username:document.getElementById("name-text").innerHTML,now:document.getElementById("datetime").innerHTML});
      });
 
 
