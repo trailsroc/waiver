@@ -115,6 +115,10 @@ def commit_waiver():
     flash('New entry was successfully posted')
     return show_waiver()
 
+@app.route('/apple-touch-icon.png')
+def appleicon():
+    return app.send_static_file('Icon-AppStore.png')
+
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'],

@@ -63,8 +63,12 @@
      });
 
      var name = window.prompt("Please enter your name:","");
-     if (name != null) {
+     if (name && name != "null"){
         document.getElementById("name-text").innerHTML = name.replace(/[^A-Za-z_ ]/g,'');
+     }
+     else
+     {
+         window.location.href = '{{ url_for("show_waiver") }}';
      }
 
      submitButton.addEventListener("click",function (event) {
