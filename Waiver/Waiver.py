@@ -131,6 +131,7 @@ def getYMD(t):
     return year,month,day
 
 def get_fancy_waivers():
+    now = getYMD(datetime.now())
     db = get_db()
     cur = db.execute('select username,signdate,filename from waiverlist')
 
@@ -140,7 +141,6 @@ def get_fancy_waivers():
         year,month,day = getYMD(t)
         entries[year][month][day][row[0]] = app.config['ROOT_URL']+'uploads'+row[2]
 
-    now = getYMD(datetime.now())
     return entries,now
 
 @app.route('/list')
